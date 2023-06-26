@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"github.com/gorilla/mux"
 	"log"
 	"net/http"
 )
@@ -18,12 +19,14 @@ func Login() http.HandlerFunc {
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
+		userName := mux.Vars(r)["username"]
 		if r.Method != "POST" {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
 
 		var req loginRequest
+		req.Username = userName
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			log.Println("error decoding JSON")
 			w.WriteHeader(http.StatusBadRequest)
