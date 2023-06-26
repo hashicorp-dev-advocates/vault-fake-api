@@ -34,6 +34,8 @@ func Login() http.HandlerFunc {
 			Message: "Permission Denied",
 		}
 
+		log.Printf("Permission Denied: User: %s \n", req.Username)
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusForbidden)
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
