@@ -11,7 +11,7 @@ go run .
 
 ```shell
 curl -X POST -H 'Content-Type: application/json' \
-  -d '{"username": "rob", "password": "password"}' \
-  localhost:820/login -v
+  -d '{"password": "password"}' \
+  http://localhost:820/v1/auth/userpass/login/rob -v
 
 ```
