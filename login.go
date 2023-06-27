@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"github.com/gorilla/mux"
 	"log"
+	"net"
 	"net/http"
+	"strings"
 )
 
 func Login() http.HandlerFunc {
@@ -25,7 +27,17 @@ func Login() http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		userName := mux.Vars(r)["username"]
-		remoteAddr := r.RemoteAddr
+
+		//remoteAddr := r.RemoteAddr
+
+		ip, _, err := net.SplitHostPort(r.RemoteAddr)
+		if err != nil {
+			log.Println("error parsing remote address:", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		ip = strings.TrimSuffix(ip, "%")
 		if r.Method != "POST" {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
@@ -44,7 +56,7 @@ func Login() http.HandlerFunc {
 				Message: "Login Successful",
 			}
 
-			log.Printf("Login Successful: User: %s Source IP Address: %s \n", req.Username, remoteAddr)
+			log.Printf("Login Successful: User: %s Source IP Address: %s \n", req.Username, ip)
 
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
@@ -57,7 +69,7 @@ func Login() http.HandlerFunc {
 				Message: "Permission Denied",
 			}
 
-			log.Printf("Permission Denied: User: %s Source IP Address: %s \n", req.Username, remoteAddr)
+			log.Printf("Permission Denied: User: %s Source IP Address: %s \n", req.Username, ip)
 
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusForbidden)
