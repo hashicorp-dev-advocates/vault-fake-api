@@ -18,8 +18,14 @@ func Login() http.HandlerFunc {
 		Message string `json:"message"`
 	}
 
+	validCredentials := map[string]string{
+		"rob": "password",
+		"nic": "password",
+	}
+
 	return func(w http.ResponseWriter, r *http.Request) {
 		userName := mux.Vars(r)["username"]
+		remoteAddr := r.RemoteAddr
 		if r.Method != "POST" {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
@@ -33,17 +39,32 @@ func Login() http.HandlerFunc {
 			return
 		}
 
-		resp := loginResponse{
-			Message: "Permission Denied",
-		}
+		if password, ok := validCredentials[req.Username]; ok && req.Password == password {
+			resp := loginResponse{
+				Message: "Login Successful",
+			}
 
-		log.Printf("Permission Denied: User: %s \n", req.Username)
+			log.Printf("Login Successful: User: %s Source IP Address: %s \n", req.Username, remoteAddr)
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusForbidden)
-		if err := json.NewEncoder(w).Encode(resp); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			if err := json.NewEncoder(w).Encode(resp); err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+		} else {
+			resp := loginResponse{
+				Message: "Permission Denied",
+			}
+
+			log.Printf("Permission Denied: User: %s Source IP Address: %s \n", req.Username, remoteAddr)
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+			if err := json.NewEncoder(w).Encode(resp); err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
 		}
 	}
 }
