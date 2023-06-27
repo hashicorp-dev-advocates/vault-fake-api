@@ -25,6 +25,8 @@ func Login() http.HandlerFunc {
 		"nic": "password",
 	}
 
+	failedAttempts := make(map[string]int)
+
 	return func(w http.ResponseWriter, r *http.Request) {
 		userName := mux.Vars(r)["username"]
 
@@ -55,7 +57,7 @@ func Login() http.HandlerFunc {
 			resp := loginResponse{
 				Message: "Login Successful",
 			}
-
+			delete(failedAttempts, req.Username)
 			log.Printf("Login Successful: User: %s Source IP Address: %s \n", req.Username, ip)
 
 			w.Header().Set("Content-Type", "application/json")
@@ -65,6 +67,7 @@ func Login() http.HandlerFunc {
 				return
 			}
 		} else {
+			failedAttempts[req.Username]++
 			resp := loginResponse{
 				Message: "Permission Denied",
 			}
@@ -76,6 +79,23 @@ func Login() http.HandlerFunc {
 			if err := json.NewEncoder(w).Encode(resp); err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				return
+			}
+
+			if failedAttempts[req.Username] >= 3 {
+				log.Printf("Multiple failed login attempts: User: %s Source IP Address: %s\n", req.Username, ip)
+
+				message := Message{
+					Ip: ip,
+				}
+
+				messageJSON, err := json.Marshal(message)
+				if err != nil {
+					log.Println("error encoding message JSON:", err)
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+
+				pubSub(string(messageJSON))
 			}
 		}
 	}
