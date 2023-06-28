@@ -4,9 +4,7 @@ import (
 	"encoding/json"
 	"github.com/gorilla/mux"
 	"log"
-	"net"
 	"net/http"
-	"strings"
 )
 
 func Login() http.HandlerFunc {
@@ -32,14 +30,22 @@ func Login() http.HandlerFunc {
 
 		//remoteAddr := r.RemoteAddr
 
-		ip, _, err := net.SplitHostPort(r.RemoteAddr)
-		if err != nil {
-			log.Println("error parsing remote address:", err)
-			w.WriteHeader(http.StatusInternalServerError)
+		if len(r.Header["X-Forwarded-For"]) == 0 {
 			return
 		}
 
-		ip = strings.TrimSuffix(ip, "%")
+		log.Printf("PUBLIC IP ADDR: %s", r.Header["X-Forwarded-For"][0])
+
+		//ip, _, err := net.SplitHostPort(r.RemoteAddr)
+		//if err != nil {
+		//	log.Println("error parsing remote address:", err)
+		//	w.WriteHeader(http.StatusInternalServerError)
+		//	return
+		//}
+
+		ip := r.Header["X-Forwarded-For"][0]
+
+		//ip = strings.TrimSuffix(ip, "%")
 		if r.Method != "POST" {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return

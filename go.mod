@@ -1,6 +1,6 @@
 module vault-api
 
-go 1.19
+go 1.17
 
 require (
 	cloud.google.com/go/pubsub v1.31.0
