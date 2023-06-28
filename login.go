@@ -36,13 +36,6 @@ func Login() http.HandlerFunc {
 
 		log.Printf("PUBLIC IP ADDR: %s", r.Header["X-Forwarded-For"][0])
 
-		//ip, _, err := net.SplitHostPort(r.RemoteAddr)
-		//if err != nil {
-		//	log.Println("error parsing remote address:", err)
-		//	w.WriteHeader(http.StatusInternalServerError)
-		//	return
-		//}
-
 		ip := r.Header["X-Forwarded-For"][0]
 
 		//ip = strings.TrimSuffix(ip, "%")
