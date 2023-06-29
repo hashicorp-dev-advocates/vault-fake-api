@@ -21,6 +21,7 @@ func Status() http.HandlerFunc {
 		ClusterName  string `json:"cluster_name"`
 		ClusterId    string `json:"cluster_id"`
 		RecoverySeal bool   `json:"recovery_seal"`
+		BuildDate    string `json:"build_date"`
 		StorageType  string `json:"storage_type"`
 		HaEnabled    bool   `json:"ha_enabled"`
 	}
@@ -34,13 +35,14 @@ func Status() http.HandlerFunc {
 		StatusResponse.N = 1
 		StatusResponse.Progress = 0
 		StatusResponse.Nonce = ""
-		StatusResponse.Version = "1.14.0"
+		StatusResponse.Version = "1.11.0"
 		StatusResponse.Migration = false
 		StatusResponse.ClusterName = "vault-cluster-30a35421"
 		StatusResponse.ClusterId = "62b51e90-effc-19b8-b53b-027c98b2848b"
 		StatusResponse.RecoverySeal = false
 		StatusResponse.StorageType = "inmem"
 		StatusResponse.HaEnabled = false
+		StatusResponse.BuildDate = "2022-05-03T08:34:11Z"
 
 		if r.Method != "GET" {
 			w.WriteHeader(http.StatusMethodNotAllowed)

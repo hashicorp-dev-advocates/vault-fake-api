@@ -14,8 +14,38 @@ func Login() http.HandlerFunc {
 		Username string `json:"username"`
 	}
 
+	type Metadata struct {
+		Username string `json:"username"`
+	}
+
+	type Auth struct {
+		ClientToken    string      `json:"client_token"`
+		Accessor       string      `json:"accessor"`
+		Policies       []string    `json:"policies"`
+		TokenPolicies  []string    `json:"token_policies"`
+		Metadata       Metadata    `json:"metadata"`
+		LeaseDuration  int         `json:"lease_duration"`
+		Renewable      bool        `json:"renewable"`
+		EntityId       string      `json:"entity_id"`
+		TokenType      string      `json:"token_type"`
+		Orphan         bool        `json:"orphan"`
+		MfaRequirement interface{} `json:"mfa_requirement"`
+		NumUses        int         `json:"num_uses"`
+	}
+
 	type loginResponse struct {
-		Message string `json:"message"`
+		RequestId     string      `json:"request_id"`
+		LeaseId       string      `json:"lease_id"`
+		Renewable     bool        `json:"renewable"`
+		LeaseDuration int         `json:"lease_duration"`
+		Data          interface{} `json:"data"`
+		WrapInfo      interface{} `json:"wrap_info"`
+		Warnings      interface{} `json:"warnings"`
+		Auth          Auth        `json:"auth"`
+	}
+
+	type ErrorMessage struct {
+		Errors []string `json:"errors"`
 	}
 
 	validCredentials := map[string]string{
@@ -28,18 +58,15 @@ func Login() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userName := mux.Vars(r)["username"]
 
-		//remoteAddr := r.RemoteAddr
-
+		var ip string
 		if len(r.Header["X-Forwarded-For"]) == 0 {
-			return
+			//fmt.Printf("LENGTH IS %v\n", len(r.Header["X-Forwarded-For"]))
+			ip = r.RemoteAddr
+		} else {
+			ip = r.Header["X-Forwarded-For"][0]
 		}
 
-		log.Printf("PUBLIC IP ADDR: %s", r.Header["X-Forwarded-For"][0])
-
-		ip := r.Header["X-Forwarded-For"][0]
-
-		//ip = strings.TrimSuffix(ip, "%")
-		if r.Method != "POST" {
+		if r.Method != "POST" && r.Method != "PUT" {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
@@ -52,49 +79,73 @@ func Login() http.HandlerFunc {
 			return
 		}
 
-		if password, ok := validCredentials[req.Username]; ok && req.Password == password {
-			resp := loginResponse{
-				Message: "Login Successful",
-			}
-			delete(failedAttempts, req.Username)
-			log.Printf("Login Successful: User: %s Source IP Address: %s \n", req.Username, ip)
+		if password, ok := validCredentials[req.Username]; ok {
+			if req.Password == password {
+				resp := loginResponse{
+					RequestId:     requestId,
+					LeaseId:       "",
+					Renewable:     false,
+					LeaseDuration: 0,
+					Data:          nil,
+					WrapInfo:      nil,
+					Warnings:      nil,
+					Auth: Auth{
+						ClientToken:   id,
+						Accessor:      accessor,
+						Policies:      []string{"default", "policy1", "policy2"},
+						TokenPolicies: []string{"default", "policy1", "policy2"},
+						Metadata: Metadata{
+							Username: req.Username,
+						},
+						LeaseDuration:  2764800,
+						Renewable:      renewable,
+						EntityId:       entityId,
+						TokenType:      tokenType,
+						Orphan:         orphan,
+						MfaRequirement: nil,
+						NumUses:        numUses,
+					},
+				}
+				delete(failedAttempts, req.Username)
+				log.Printf("Login Successful: User: %s Source IP Address: %s \n", req.Username, ip)
 
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			if err := json.NewEncoder(w).Encode(resp); err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-		} else {
-			failedAttempts[req.Username]++
-			resp := loginResponse{
-				Message: "Permission Denied",
-			}
-
-			log.Printf("Permission Denied: User: %s Source IP Address: %s \n", req.Username, ip)
-
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusForbidden)
-			if err := json.NewEncoder(w).Encode(resp); err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-
-			if failedAttempts[req.Username] >= 3 {
-				log.Printf("Multiple failed login attempts: User: %s Source IP Address: %s\n", req.Username, ip)
-
-				message := Message{
-					Ip: ip,
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				if err := json.NewEncoder(w).Encode(resp); err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+			} else {
+				failedAttempts[req.Username]++
+				resp := ErrorMessage{
+					Errors: []string{"permission denied"},
 				}
 
-				messageJSON, err := json.Marshal(message)
-				if err != nil {
-					log.Println("error encoding message JSON:", err)
+				log.Printf("Permission Denied: User: %s Source IP Address: %s \n", req.Username, ip)
+
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusForbidden)
+				if err := json.NewEncoder(w).Encode(resp); err != nil {
 					w.WriteHeader(http.StatusInternalServerError)
 					return
 				}
 
-				pubSub(string(messageJSON))
+				if failedAttempts[req.Username] == 3 {
+					log.Printf("Multiple failed login attempts: User: %s Source IP Address: %s\n", req.Username, ip)
+
+					message := Message{
+						Ip: ip,
+					}
+
+					messageJSON, err := json.Marshal(message)
+					if err != nil {
+						log.Println("error encoding message JSON:", err)
+						w.WriteHeader(http.StatusInternalServerError)
+						return
+					}
+
+					pubSub(string(messageJSON))
+				}
 			}
 		}
 	}
